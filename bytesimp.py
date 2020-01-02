@@ -3,34 +3,13 @@ import sys
 import runpy
 import base64
 import zipfile
-import importlib.abc
 from zipimport import _bootstrap_external, path_sep, _zip_searchorder, _is_dir
 from zipimport import _compile_source, _module_type
-import pkgutil
 from log import log
 
 
 APP = 'UEsDBBQAAAAAAMJLn08AAAAAAAAAAAAAAAAIAAAAc3VicGFjay9QSwMEFAAAAAAAQkqfTwC1Hl5KAAAASgAAAAsAAABfX21haW5fXy5weWZyb20gc3VicGFjayBpbXBvcnQgY2FsYwppbXBvcnQgcHJpbnRlcgoKcHJpbnRlci5wcmludGVyKGNhbGMuY2FsYygxLCAyKSkKUEsDBBQAAAAAAMZ7NkwAAAAAAAAAAAAAAAALAAAAX19pbml0X18ucHlQSwMEFAAAAAAAr0mfT04xl30mAAAAJgAAAAoAAABwcmludGVyLnB5ZGVmIHByaW50ZXIoKmFyZ3MpOgogICAgcHJpbnQoKmFyZ3MpCgpQSwMEFAAAAAAAxns2TAAAAAAAAAAAAAAAABMAAABzdWJwYWNrL19faW5pdF9fLnB5UEsDBBQAAAAAAMZKn08wEEw9RgAAAEYAAAAPAAAAc3VicGFjay9jYWxjLnB5ZnJvbSAuIGltcG9ydCBoZWxwZXIKCmRlZiBjYWxjKHgsIHkpOgogICAgcmV0dXJuIHggKyB5ICsgaGVscGVyLnooeCkKClBLAwQUAAAAAABySp9PDLHwmRwAAAAcAAAAEQAAAHN1YnBhY2svaGVscGVyLnB5ZGVmIHooeCk6CiAgICByZXR1cm4gMiAqIHgKClBLAQIUAxQAAAAAAMJLn08AAAAAAAAAAAAAAAAIAAAAAAAAAAAAEADtQQAAAABzdWJwYWNrL1BLAQIUAxQAAAAAAEJKn08AtR5eSgAAAEoAAAALAAAAAAAAAAAAAACkgSYAAABfX21haW5fXy5weVBLAQIUAxQAAAAAAMZ7NkwAAAAAAAAAAAAAAAALAAAAAAAAAAAAAACkgZkAAABfX2luaXRfXy5weVBLAQIUAxQAAAAAAK9Jn09OMZd9JgAAACYAAAAKAAAAAAAAAAAAAACkgcIAAABwcmludGVyLnB5UEsBAhQDFAAAAAAAxns2TAAAAAAAAAAAAAAAABMAAAAAAAAAAAAAAKSBEAEAAHN1YnBhY2svX19pbml0X18ucHlQSwECFAMUAAAAAADGSp9PMBBMPUYAAABGAAAADwAAAAAAAAAAAAAApIFBAQAAc3VicGFjay9jYWxjLnB5UEsBAhQDFAAAAAAAckqfTwyx8JkcAAAAHAAAABEAAAAAAAAAAAAAAKSBtAEAAHN1YnBhY2svaGVscGVyLnB5UEsFBgAAAAAHAAcAnQEAAP8BAAAAAA=='
 APP_ORIGIN = 'app.pyz'
-
-
-class AppLoader(importlib.abc.SourceLoader):
-
-    @staticmethod
-    def get_data(path):
-        return base64.b64decode(APP)
-
-    @staticmethod
-    def get_filename(fullname):
-        return APP_ORIGIN
-
-
-class AppFinder(importlib.abc.PathEntryFinder):
-
-    @staticmethod
-    def find_spec(fullname, target=None):
-        return importlib.machinery.ModuleSpec(
-                APP_ORIGIN, AppLoader, origin=APP_ORIGIN, is_package=True)
 
 
 def _get_module_path(self, fullname):
@@ -45,37 +24,14 @@ def _get_module_info(self, fullname):
             return ispackage
     return None
 
-# Given a path to a Zip archive, build a dict, mapping file names
-# (local to the archive, using SEP as a separator) to toc entries.
-#
-# A toc_entry is a tuple(
-#  __file__,        # value to use for __file__
-#  compress,        # compression kind; 0 for uncompressed
-#  data_size,       # size of compressed data on disk
-#  file_size,       # size of decompressed data
-#  file_offset,     # offset of file header from start of archive
-#  time,            # mod time of file (in dos format)
-#  date,            # mod data of file (in dos format)
-#  crc,             # crc checksum of the data
-# )
-#
-# Directories can be recognized by the trailing path_sep in the name,
-# data_size and file_offset are 0.
-def read_files(self, archive):
-    with zipfile.ZipFile(self.bytes_io) as app:
+
+def _read_files(self, archive):
+    with zipfile.ZipFile(self.bytes_io) as pyz:
         files = {}
-        for info in app.infolist():
-            name = info.filename.replace('/', path_sep)
+        for filename in pyz.namelist():
+            name = filename.replace('/', path_sep)
             path = _bootstrap_external._path_join(archive, name)
-            compress = info.compress_type
-            data_size = info.compress_size
-            file_size = info.file_size
-            file_offset = info.header_offset
-            time = info.date_time
-            date = info.date_time
-            crc = info.CRC
-            t = (path, compress, data_size, file_size, file_offset, time, date, crc, info)
-            files[name] = t
+            files[name] = path
         return files
 
 
@@ -90,20 +46,18 @@ def _get_module_code(self, fullname):
     for suffix, isbytecode, ispackage in _zip_searchorder:
         fullpath = path + suffix
         try:
-            toc_entry = self._files[fullpath]
+            path = self._files[fullpath]
         except KeyError:
             pass
         else:
-            modpath = toc_entry[0]
             data = _get_data(self, fullpath)
             if isbytecode:
-                code = _unmarshal_code(self, modpath, fullpath, fullname, data)
+                code = _unmarshal_code(self, path, fullpath, fullname, data)
             else:
-                code = _compile_source(modpath, data)
+                code = _compile_source(path, data)
             if code is None:
                 continue
-            modpath = toc_entry[0]
-            return code, ispackage, modpath
+            return code, ispackage, path
     else:
         raise ImportError(f"Can't find module {fullname!r}", name=fullname)
 
@@ -116,7 +70,7 @@ class BytesImporter:
         self.bytes_io = io.BytesIO(app_bytes)
         self.prefix = ''
         self.archive = path
-        self._files = read_files(self, path)
+        self._files = _read_files(self, path)
 
     def find_loader(self, fullname, path=None):
         """
@@ -192,6 +146,5 @@ class BytesImporter:
 
 
 sys.path_hooks.append(BytesImporter)
-#importer = pkgutil.get_importer(APP_ORIGIN)
 runpy.run_path(APP_ORIGIN)
 
