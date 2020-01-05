@@ -53,8 +53,6 @@ class Helper:
 
 
 class Loader(importlib.abc.InspectLoader):
-    def __init__(self):
-        pass
 
     def get_source(self, fullname):
         is_package = self.is_package(fullname)
