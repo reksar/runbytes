@@ -4,6 +4,8 @@ import runpy
 import base64
 import zipfile
 import importlib.abc
+import importlib.util
+import importlib.machinery
 from log import log
 
 
@@ -30,25 +32,26 @@ class Reader:
             return pyz.read(path)
 
 
-class Helper:
+class Path:
 
     @staticmethod
-    def name_to_path(fullname):
+    def from_name(fullname):
         return fullname.replace('.', '/')
 
     @staticmethod
-    def module_name_to_path(fullname):
-        return f'{Helper.name_to_path(fullname)}.py'
+    def from_module_name(fullname):
+        return f'{Path.from_name(fullname)}.py'
 
     @staticmethod
-    def package_name_to_path(fullname):
-        return f'{Helper.name_to_path(fullname)}/'
+    def from_package_name(fullname):
+        return f'{Path.from_name(fullname)}/'
 
     @staticmethod
-    def name_exists(fullname):
+    def is_contains(fullname):
+        # TODO: move it somewhere
         path_entries = Reader.path_entries()
-        package_path = Helper.package_name_to_path(fullname)
-        module_path = Helper.module_name_to_path(fullname)
+        package_path = Path.from_package_name(fullname)
+        module_path = Path.from_module_name(fullname)
         return package_path in path_entries or module_path in path_entries
 
 
@@ -56,7 +59,7 @@ class Loader(importlib.abc.InspectLoader):
 
     def get_source(self, fullname):
         is_package = self.is_package(fullname)
-        path = Helper.package_name_to_path(fullname) + '__init__.py' if is_package else Helper.module_name_to_path(fullname)
+        path = Path.from_package_name(fullname) + '__init__.py' if is_package else Path.from_module_name(fullname)
         try:
             source_bytes = Reader.read(path)
         except KeyError:
@@ -64,7 +67,7 @@ class Loader(importlib.abc.InspectLoader):
         return importlib.util.decode_source(source_bytes)
 
     def is_package(self, fullname):
-        return Helper.name_exists(f'{fullname}.__init__')
+        return Path.is_contains(f'{fullname}.__init__')
 
 
 class Finder(importlib.abc.PathEntryFinder):
@@ -72,9 +75,10 @@ class Finder(importlib.abc.PathEntryFinder):
         self.loader = loader
 
     def find_spec(self, fullname, target=None):
-        if Helper.name_exists(fullname):
+        # TODO: implement target finder
+        if Path.is_contains(fullname):
             is_package = self.loader.is_package(fullname)
-            origin = Helper.package_name_to_path(fullname) if is_package else Helper.module_name_to_path(fullname)
+            origin = Path.from_package_name(fullname) if is_package else Path.from_module_name(fullname)
             origin = f'{APP_ORIGIN}/{origin}'
             spec = importlib.machinery.ModuleSpec(fullname, self.loader, origin=origin, is_package=is_package)
             if is_package:
@@ -91,4 +95,3 @@ loader = Loader()
 finder = Finder(loader)
 sys.path_hooks.append(finder.path_hook)
 runpy.run_path(APP_ORIGIN)
-
