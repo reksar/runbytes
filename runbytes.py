@@ -71,8 +71,8 @@ class Loader(importlib.abc.InspectLoader):
 
 
 class Finder(importlib.abc.PathEntryFinder):
-    def __init__(self, loader):
-        self.loader = loader
+    def __init__(self):
+        self.loader = Loader()
 
     def find_spec(self, fullname, target=None):
         # TODO: implement target finder
@@ -91,7 +91,6 @@ class Finder(importlib.abc.PathEntryFinder):
         raise ImportError(f'no path {path_entry}', path=path_entry)
 
 
-loader = Loader()
-finder = Finder(loader)
+finder = Finder()
 sys.path_hooks.append(finder.path_hook)
 runpy.run_path(APP_ORIGIN)
