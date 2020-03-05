@@ -1,5 +1,7 @@
 # The import machinery
 
+See [The import system](https://docs.python.org/3/reference/import.html) in the Python language reference.
+
 ## Meta path finders
 
 When the named module is not found in `sys.modules` cache, Python next searches `sys.meta_path`, which contains a list of *meta path finder* objects.
