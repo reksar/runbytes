@@ -84,15 +84,15 @@ class Finder(importlib.abc.PathEntryFinder):
                 spec.submodule_search_locations.append(origin)
             return spec
 
-    def path_hook(self, path_entry):
-        if path_entry.startswith(APP_ORIGIN):
-            return self
-        raise ImportError(f'no path {path_entry}', path=path_entry)
+
+def path_hook(path_entry):
+    if path_entry.startswith(APP_ORIGIN):
+        return Finder()
+    raise ImportError(f'No path {path_entry}', path=path_entry)
 
 
 def main():
-    finder = Finder()
-    sys.path_hooks.append(finder.path_hook)
+    sys.path_hooks.append(path_hook)
     runpy.run_path(APP_ORIGIN)
 
 
