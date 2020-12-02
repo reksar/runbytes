@@ -90,6 +90,11 @@ class Finder(importlib.abc.PathEntryFinder):
         raise ImportError(f'no path {path_entry}', path=path_entry)
 
 
-finder = Finder()
-sys.path_hooks.append(finder.path_hook)
-runpy.run_path(APP_ORIGIN)
+def main():
+    finder = Finder()
+    sys.path_hooks.append(finder.path_hook)
+    runpy.run_path(APP_ORIGIN)
+
+
+if __name__ == '__main__':
+    main()
