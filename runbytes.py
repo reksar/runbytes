@@ -70,16 +70,15 @@ class Loader(importlib.abc.InspectLoader):
 
 
 class Finder(importlib.abc.PathEntryFinder):
-    def __init__(self):
-        self.loader = Loader()
 
     def find_spec(self, fullname, target=None):
         # TODO: implement target finder
         if Path.is_contains(fullname):
-            is_package = self.loader.is_package(fullname)
+            loader = Loader()
+            is_package = loader.is_package(fullname)
             origin = Path.from_package_name(fullname) if is_package else Path.from_module_name(fullname)
             origin = f'{APP_ORIGIN}/{origin}'
-            spec = importlib.machinery.ModuleSpec(fullname, self.loader, origin=origin, is_package=is_package)
+            spec = importlib.machinery.ModuleSpec(fullname, loader, origin=origin, is_package=is_package)
             if is_package:
                 spec.submodule_search_locations.append(origin)
             return spec
