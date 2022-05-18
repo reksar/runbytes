@@ -8,9 +8,11 @@ def open_pyz(app):
     pyz_io = io.BytesIO(pyz_bytes)
     return zipfile.PyZipFile(pyz_io)
 
+
 def path_entries(app):
     with open_pyz(app) as pyz:
         return pyz.namelist()
+
 
 def read(path, app):
     with open_pyz(app) as pyz:
