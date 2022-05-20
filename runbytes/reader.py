@@ -4,7 +4,7 @@ import zipfile
 
 
 def open_pyz(app):
-    pyz_bytes = base64.b64decode(app)
+    pyz_bytes = base64.b64decode(app.body)
     pyz_io = io.BytesIO(pyz_bytes)
     return zipfile.PyZipFile(pyz_io)
 
