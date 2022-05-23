@@ -1,10 +1,10 @@
-import importlib.machinery
-
+from importlib.abc import PathEntryFinder
+from importlib.machinery import ModuleSpec
 from . import path
 from .loader import Loader
 
 
-class Finder(importlib.abc.PathEntryFinder):
+class Finder(PathEntryFinder):
 
     def __init__(self, app):
         self.app = app
@@ -12,11 +12,27 @@ class Finder(importlib.abc.PathEntryFinder):
     def find_spec(self, fullname, target=None):
         # TODO: implement target finder
         if path.contains(fullname, self.app):
-            loader = Loader(self.app)
-            is_package = loader.is_package(fullname)
-            origin = path.from_package_name(fullname) if is_package else path.from_module_name(fullname)
-            origin = f"{self.app.name}/{origin}"
-            spec = importlib.machinery.ModuleSpec(fullname, loader, origin=origin, is_package=is_package)
-            if is_package:
-                spec.submodule_search_locations.append(origin)
-            return spec
+            return self.module_spec(fullname)
+
+    def module_spec(self, fullname):
+        loader = Loader(self.app)
+        is_package = loader.is_package(fullname)
+
+        if is_package:
+            origin_path = path.from_package_name
+        else:
+            origin_path = path.from_module_name
+
+        origin = f"{self.app.name}/{origin_path(fullname)}"
+
+        spec = ModuleSpec(
+            fullname,
+            loader,
+            origin=origin,
+            is_package=is_package,
+        )
+
+        if is_package:
+            spec.submodule_search_locations.append(origin)
+
+        return spec

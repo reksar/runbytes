@@ -5,14 +5,12 @@ from zipfile import PyZipFile
 
 class App:
 
-    separator = ':'
-
     def __init__(self, encoded_app: str):
-        self.name, self.body = encoded_app.split(self.separator)
+        self.name, self.payload = encoded_app.split(':')
 
     @property
     def pyz_context(self):
-        return PyZipFile(BytesIO(b64decode(self.body)))
+        return PyZipFile(BytesIO(b64decode(self.payload)))
 
     @property
     def path_entries(self):
